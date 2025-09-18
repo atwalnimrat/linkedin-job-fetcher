@@ -16,7 +16,8 @@ def login_to_linkedin(email, password, driver=None, headless=False):
     if headless:
         options.add_argument("--headless=new")
         options.add_argument("--disable-gpu")
-    # optional: avoid detection nudges
+        
+    # Avoid detection nudges
     options.add_argument("--disable-blink-features=AutomationControlled")
 
     driver = webdriver.Chrome(options=options) if driver is None else driver
@@ -28,22 +29,17 @@ def login_to_linkedin(email, password, driver=None, headless=False):
     driver.find_element(By.ID, "username").send_keys(email)
     driver.find_element(By.ID, "password").send_keys(password + Keys.RETURN)
 
-    # wait for post-login redirect (presence of profile nav or jobs link)
+    # Wait for post-login redirect
     try:
         wait.until(
             EC.presence_of_element_located((By.ID, "global-nav-search"))
         )
     except TimeoutException:
-        # fallback: presence of avatar or nav
         time.sleep(2)
     return driver
 
 
 def wait_for_job_cards_stable(driver, timeout=10, poll_interval=0.5, stable_for=1.0):
-    """
-    Wait until the number of job-card-container elements is stable for `stable_for` seconds.
-    Returns the list (snapshot) of elements when stable or whatever was last found on timeout.
-    """
     end_time = time.time() + timeout
     last_count = -1
     stable_start = None
@@ -55,13 +51,13 @@ def wait_for_job_cards_stable(driver, timeout=10, poll_interval=0.5, stable_for=
             if stable_start is None:
                 stable_start = time.time()
             elif time.time() - stable_start >= stable_for:
-                return cards  # stable snapshot
+                return cards            # stable snapshot
         else:
             last_count = count
             stable_start = None
         last_cards = cards
         time.sleep(poll_interval)
-    return last_cards  # timeout -> return last seen
+    return last_cards                   # timeout -> return last seen
 
 
 def fetch_jobs(driver, location, keywords, max_jobs=50, auto_scroll=True):
@@ -69,7 +65,6 @@ def fetch_jobs(driver, location, keywords, max_jobs=50, auto_scroll=True):
     wait = WebDriverWait(driver, 15)
     used_layout = None
 
-    # --- attempt search layouts ---
     try:
         # Layout A: two separate inputs
         keywords_input = wait.until(
@@ -125,7 +120,7 @@ def fetch_jobs(driver, location, keywords, max_jobs=50, auto_scroll=True):
     print(f"[INFO] Using layout {used_layout} for search")
     time.sleep(2)
 
-    # --- auto scroll ---
+    # --- Auto scroll ---
     if auto_scroll:
         last_count, retries = 0, 0
         while True:
@@ -142,7 +137,7 @@ def fetch_jobs(driver, location, keywords, max_jobs=50, auto_scroll=True):
             if retries >= 3 or new_count >= max_jobs:
                 break
 
-    # --- scrape job cards ---
+    # --- Job cards ---
     job_cards = driver.find_elements(By.CSS_SELECTOR, "div.job-card-job-posting-card-wrapper")
     if not job_cards:
         print("[INFO] No job cards found.")
